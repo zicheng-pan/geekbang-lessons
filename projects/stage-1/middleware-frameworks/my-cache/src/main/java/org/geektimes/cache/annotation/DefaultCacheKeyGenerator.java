@@ -14,37 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.cache;
+package org.geektimes.cache.annotation;
 
-import javax.cache.annotation.*;
+import javax.cache.annotation.CacheKeyGenerator;
+import javax.cache.annotation.CacheKeyInvocationContext;
+import javax.cache.annotation.GeneratedCacheKey;
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
 
 /**
- * Data Repository
+ * Default {@link CacheKeyGenerator} implementation:
+ * <p>
+ * Defaults to a key generator that uses {@link Arrays#deepHashCode(Object[])}
+ * and {@link Arrays#deepEquals(Object[], Object[])} with the array
+ * returned by {@link CacheKeyInvocationContext#getKeyParameters()}
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
+ * @see DefaultGeneratedCacheKey
  * @since 1.0.0
  */
-@CacheDefaults(cacheName = "defaultCache")
-public interface DataRepository {
+public class DefaultCacheKeyGenerator implements CacheKeyGenerator {
 
-    @CachePut(cacheName = "simpleCache")
-    boolean create(@CacheKey String name, @CacheValue Object value);
-
-    @CachePut
-    boolean save(@CacheKey String name, @CacheKey String alias, @CacheValue Object value);
-
-    @CachePut
-    boolean save(String name, @CacheValue Object value);
-
-    @CacheRemove(cacheName = "simpleCache", afterInvocation = false)
-    boolean remove(String name);
-
-    @CacheResult(exceptionCacheName = "exceptionCache")
-    Object get(String name);
-
-    @CacheResult(skipGet = true)
-    Object getWithoutCache(String name);
-
-    @CacheRemoveAll(cacheName = "simpleCache")
-    void removeAll();
+    @Override
+    public GeneratedCacheKey generateCacheKey(CacheKeyInvocationContext<? extends Annotation> cacheKeyInvocationContext) {
+        return new DefaultGeneratedCacheKey(cacheKeyInvocationContext);
+    }
 }

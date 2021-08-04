@@ -14,37 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.cache;
+package org.geektimes.commons.util;
 
-import javax.cache.annotation.*;
+import java.lang.reflect.Array;
 
 /**
- * Data Repository
+ * The utilities class for {@link Array}
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-@CacheDefaults(cacheName = "defaultCache")
-public interface DataRepository {
+public abstract class ArrayUtils {
 
-    @CachePut(cacheName = "simpleCache")
-    boolean create(@CacheKey String name, @CacheValue Object value);
-
-    @CachePut
-    boolean save(@CacheKey String name, @CacheKey String alias, @CacheValue Object value);
-
-    @CachePut
-    boolean save(String name, @CacheValue Object value);
-
-    @CacheRemove(cacheName = "simpleCache", afterInvocation = false)
-    boolean remove(String name);
-
-    @CacheResult(exceptionCacheName = "exceptionCache")
-    Object get(String name);
-
-    @CacheResult(skipGet = true)
-    Object getWithoutCache(String name);
-
-    @CacheRemoveAll(cacheName = "simpleCache")
-    void removeAll();
+    public static <T> T[] of(T... values) {
+        return values;
+    }
 }

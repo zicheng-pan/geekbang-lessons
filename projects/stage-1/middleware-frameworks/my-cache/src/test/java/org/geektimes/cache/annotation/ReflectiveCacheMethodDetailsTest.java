@@ -14,37 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.cache;
+package org.geektimes.cache.annotation;
 
-import javax.cache.annotation.*;
+import org.geektimes.cache.DataRepository;
+import org.junit.Test;
+
+import javax.cache.annotation.CachePut;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+
+import static org.junit.Assert.assertEquals;
 
 /**
- * Data Repository
+ * {@link ReflectiveCacheMethodDetails} Test
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-@CacheDefaults(cacheName = "defaultCache")
-public interface DataRepository {
+public class ReflectiveCacheMethodDetailsTest {
 
-    @CachePut(cacheName = "simpleCache")
-    boolean create(@CacheKey String name, @CacheValue Object value);
+    @Test
+    public void test() throws Throwable {
+        Method method = DataRepository.class.getMethod("create", String.class, Object.class);
+        ReflectiveCacheMethodDetails details = new ReflectiveCacheMethodDetails(method);
 
-    @CachePut
-    boolean save(@CacheKey String name, @CacheKey String alias, @CacheValue Object value);
-
-    @CachePut
-    boolean save(String name, @CacheValue Object value);
-
-    @CacheRemove(cacheName = "simpleCache", afterInvocation = false)
-    boolean remove(String name);
-
-    @CacheResult(exceptionCacheName = "exceptionCache")
-    Object get(String name);
-
-    @CacheResult(skipGet = true)
-    Object getWithoutCache(String name);
-
-    @CacheRemoveAll(cacheName = "simpleCache")
-    void removeAll();
+        assertEquals(method, details.getMethod());
+        assertEquals("simpleCache", details.getCacheName());
+        assertEquals(CachePut.class, details.getCacheAnnotation().annotationType());
+        assertEquals(1, details.getAnnotations().size());
+    }
 }
