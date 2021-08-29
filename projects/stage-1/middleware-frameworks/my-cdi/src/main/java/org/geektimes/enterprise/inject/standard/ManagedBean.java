@@ -23,15 +23,15 @@ import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.CreationException;
 import javax.enterprise.inject.spi.*;
 import java.lang.reflect.Constructor;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.lang.reflect.Type;
+import java.util.*;
 
 import static java.util.Collections.*;
 import static org.geektimes.commons.collection.util.CollectionUtils.newLinkedHashSet;
 import static org.geektimes.enterprise.inject.util.Beans.validateManagedBeanSpecializes;
 import static org.geektimes.enterprise.inject.util.Beans.validateManagedBeanType;
+import static org.geektimes.enterprise.inject.util.Producers.resolveProducerFieldBeans;
+import static org.geektimes.enterprise.inject.util.Producers.resolveProducerMethodBeans;
 
 /**
  * Managed {@link Bean} based on Java Reflection.
@@ -40,28 +40,40 @@ import static org.geektimes.enterprise.inject.util.Beans.validateManagedBeanType
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class ManagedBean<T> extends AbstractBean<Class, T> {
+public class ManagedBean<T> extends AbstractAnnotatedTypeBean<T> {
 
     private final BeanManager beanManager;
-
-    private final AnnotatedType annotatedType;
 
     private Map<AnnotatedConstructor, List<ConstructorParameterInjectionPoint>> constructorParameterInjectionPointsMap;
 
     private Set<FieldInjectionPoint> fieldInjectionPoints;
 
-    private Map<AnnotatedMethod, List<MethodParameterInjectionPoint>> methodParameterInjectionPointsMap;
+    private Map<AnnotatedMethod, Set<MethodParameterInjectionPoint>> methodParameterInjectionPointsMap;
 
-    public ManagedBean(BeanManager beanManager, Class<?> beanClass) {
-        super(beanClass, beanClass);
+    private Set<ProducerMethodBean> producerMethodBeans;
+
+    private Set<ProducerFieldBean> producerFieldBeans;
+
+    private Set<Type> producerTypes;
+
+    public ManagedBean(AnnotatedType<T> beanType, BeanManager beanManager) {
+        super(beanType);
         this.beanManager = beanManager;
-        this.annotatedType = new ReflectiveAnnotatedType(beanClass);
+    }
+
+    protected ManagedBean(Class<?> beanClass, BeanManager beanManager) {
+        this(new ReflectiveAnnotatedType<>(beanClass),beanManager);
     }
 
     @Override
     protected void validateAnnotatedElement(Class beanClass) {
         validateManagedBeanType(beanClass);
         validateManagedBeanSpecializes(beanClass);
+    }
+
+    @Override
+    public Annotated getAnnotated() {
+        return getAnnotatedType();
     }
 
     @Override
@@ -109,10 +121,6 @@ public class ManagedBean<T> extends AbstractBean<Class, T> {
         creationalContext.release();
     }
 
-    public AnnotatedType getAnnotatedType() {
-        return annotatedType;
-    }
-
     public Map<AnnotatedConstructor, List<ConstructorParameterInjectionPoint>> getConstructorParameterInjectionPointsMap() {
         if (constructorParameterInjectionPointsMap == null) {
             constructorParameterInjectionPointsMap = Injections.getConstructorParameterInjectionPointsMap(getAnnotatedType(), this);
@@ -138,7 +146,7 @@ public class ManagedBean<T> extends AbstractBean<Class, T> {
         return fieldInjectionPoints;
     }
 
-    public Map<AnnotatedMethod, List<MethodParameterInjectionPoint>> getMethodParameterInjectionPointsMap() {
+    public Map<AnnotatedMethod, Set<MethodParameterInjectionPoint>> getMethodParameterInjectionPointsMap() {
         if (methodParameterInjectionPointsMap == null) {
             methodParameterInjectionPointsMap = Injections.getMethodParameterInjectionPoints(getAnnotatedType(), this);
         }
@@ -174,7 +182,38 @@ public class ManagedBean<T> extends AbstractBean<Class, T> {
         return unmodifiableSet(injectionPoints);
     }
 
+    public Set<ProducerMethodBean> getProducerMethodBeans() {
+        if (producerMethodBeans == null) {
+            producerMethodBeans = resolveProducerMethodBeans(this);
+
+        }
+        return producerMethodBeans;
+    }
+
+    public Set<ProducerFieldBean> getProducerFieldBeans() {
+        if (producerFieldBeans == null) {
+            producerFieldBeans = resolveProducerFieldBeans(this);
+
+        }
+        return producerFieldBeans;
+    }
+
+    public Set<Type> getProducerTypes() {
+        if (producerTypes == null) {
+            producerTypes = new LinkedHashSet<>();
+            producerMethodBeans.forEach(bean -> {
+                producerTypes.addAll(bean.getTypes());
+            });
+            producerFieldBeans.forEach(bean -> {
+                producerTypes.addAll(bean.getTypes());
+            });
+            producerTypes = unmodifiableSet(producerTypes);
+        }
+        return producerTypes;
+    }
+
     public BeanManager getBeanManager() {
         return beanManager;
     }
+
 }

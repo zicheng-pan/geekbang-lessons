@@ -16,8 +16,6 @@
  */
 package org.geektimes.enterprise.inject.standard;
 
-import org.geektimes.commons.reflect.util.ReflectionUtils;
-
 import javax.enterprise.inject.spi.Annotated;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -26,6 +24,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
 
+import static java.util.Objects.hash;
 import static org.geektimes.commons.collection.util.CollectionUtils.ofSet;
 import static org.geektimes.commons.reflect.util.TypeUtils.asClass;
 import static org.geektimes.enterprise.inject.util.Beans.getBeanTypes;
@@ -41,14 +40,22 @@ public abstract class ReflectiveAnnotated<A extends AnnotatedElement> implements
 
     private final A annotatedElement;
 
+    private Set<Annotation> annotations;
+
+    private Set<Type> beanTypes;
+
+    private int hashCode;
+
     public ReflectiveAnnotated(A annotatedElement) {
         this.annotatedElement = annotatedElement;
     }
 
     @Override
     public Set<Type> getTypeClosure() {
-        Class<?> baseClass = asClass(getBaseType());
-        return getBeanTypes(baseClass);
+        if (beanTypes == null) {
+            beanTypes = getBeanTypes(asClass(getBaseType()));
+        }
+        return beanTypes;
     }
 
     @Override
@@ -63,7 +70,10 @@ public abstract class ReflectiveAnnotated<A extends AnnotatedElement> implements
 
     @Override
     public Set<Annotation> getAnnotations() {
-        return ofSet(annotatedElement.getAnnotations());
+        if (annotations == null) {
+            annotations = ofSet(annotatedElement.getAnnotations());
+        }
+        return annotations;
     }
 
     @Override
@@ -80,17 +90,20 @@ public abstract class ReflectiveAnnotated<A extends AnnotatedElement> implements
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ReflectiveAnnotated<?> that = (ReflectiveAnnotated<?>) o;
-        return Objects.equals(annotatedElement, that.annotatedElement);
+        return Objects.equals(getAnnotatedElement(), that.getAnnotatedElement());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(annotatedElement);
+        if (hashCode == 0) {
+            hashCode = hash(getAnnotatedElement());
+        }
+        return hashCode;
     }
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", ReflectiveAnnotated.class.getSimpleName() + "[", "]")
+        return new StringJoiner(", ", getClass().getSimpleName() + "[", "]")
                 .add("annotatedElement=" + getAnnotatedElement())
                 .add("baseType=" + getBaseType())
                 .add("types=" + getTypeClosure())

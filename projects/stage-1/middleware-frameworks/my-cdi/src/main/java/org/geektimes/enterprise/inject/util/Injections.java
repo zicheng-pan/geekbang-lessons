@@ -16,16 +16,14 @@
  */
 package org.geektimes.enterprise.inject.util;
 
-import org.geektimes.enterprise.inject.standard.ConstructorParameterInjectionPoint;
-import org.geektimes.enterprise.inject.standard.FieldInjectionPoint;
-import org.geektimes.enterprise.inject.standard.MethodParameterInjectionPoint;
+import org.geektimes.enterprise.inject.standard.*;
 
 import javax.enterprise.inject.spi.*;
 import javax.inject.Inject;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.*;
 
 import static java.lang.String.format;
@@ -116,7 +114,35 @@ public abstract class Injections {
         return injectionPoints;
     }
 
-    public static Map<AnnotatedMethod, List<MethodParameterInjectionPoint>> getMethodParameterInjectionPoints(AnnotatedType annotatedType, Bean<?> bean) {
+    public static Set<MethodParameterInjectionPoint> getMethodParameterInjectionPoints(AnnotatedMethod method, Bean<?> bean) {
+        List<AnnotatedParameter> annotatedParameters = method.getParameters();
+        int size = annotatedParameters.size();
+        if (size < 1) {
+            return emptySet();
+        }
+
+        Set<MethodParameterInjectionPoint> injectionPoints = new LinkedHashSet<>(size);
+        for (int i = 0; i < size; i++) {
+            injectionPoints.add(createMethodParameterInjectionPoint(annotatedParameters.get(i), method, bean));
+        }
+
+        return unmodifiableSet(injectionPoints);
+    }
+
+    public static MethodParameterInjectionPoint createMethodParameterInjectionPoint(Parameter parameter, int index, Method method, Bean<?> bean) {
+        return createMethodParameterInjectionPoint(new ReflectiveAnnotatedParameter<>(parameter, index, new ReflectiveAnnotatedMethod<>(method)), bean);
+    }
+
+    public static MethodParameterInjectionPoint createMethodParameterInjectionPoint(AnnotatedParameter parameter, Bean<?> bean) {
+        return createMethodParameterInjectionPoint(parameter, (AnnotatedMethod) parameter.getDeclaringCallable(), bean);
+    }
+
+    public static MethodParameterInjectionPoint createMethodParameterInjectionPoint(AnnotatedParameter parameter,
+                                                                                    AnnotatedMethod method, Bean<?> bean) {
+        return new MethodParameterInjectionPoint(parameter, method, bean);
+    }
+
+    public static Map<AnnotatedMethod, Set<MethodParameterInjectionPoint>> getMethodParameterInjectionPoints(AnnotatedType annotatedType, Bean<?> bean) {
         if (annotatedType == null) {
             return emptyMap();
         }
@@ -127,17 +153,13 @@ public abstract class Injections {
             return emptyMap();
         }
 
-        Map<AnnotatedMethod, List<MethodParameterInjectionPoint>> injectionPointsMap =
+        Map<AnnotatedMethod, Set<MethodParameterInjectionPoint>> injectionPointsMap =
                 new LinkedHashMap<>(annotatedMethods.size());
 
         for (AnnotatedMethod annotatedMethod : annotatedMethods) {
             if (annotatedMethod.isAnnotationPresent(Inject.class)) {
-                List<AnnotatedParameter> annotatedParameters = annotatedMethod.getParameters();
-                List<MethodParameterInjectionPoint> injectionPoints = new ArrayList<>(annotatedParameters.size());
-                for (AnnotatedParameter annotatedParameter : annotatedParameters) {
-                    injectionPoints.add(new MethodParameterInjectionPoint(annotatedParameter, annotatedMethod, bean));
-                }
-                injectionPointsMap.put(annotatedMethod, unmodifiableList(injectionPoints));
+                Set<MethodParameterInjectionPoint> injectionPoints = getMethodParameterInjectionPoints(annotatedMethod, bean);
+                injectionPointsMap.put(annotatedMethod, injectionPoints);
             }
         }
 
