@@ -14,28 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.util;
+package org.geektimes.interceptor;
 
-import org.geektimes.commons.lang.util.AnnotationUtils;
-
-import javax.interceptor.Interceptor;
 import javax.interceptor.InterceptorBinding;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedElement;
+import java.util.Comparator;
 
 /**
- * The utilties class for {@link Interceptor}
+ * The {@link Comparator} of {@link InterceptorBinding Inteceptor Binding} annotation using the
+ * {@link String} representing of {@link Annotation#toString() annotation}
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public abstract class Interceptors {
+class InterceptorBindingComparator implements Comparator<Annotation> {
 
-    public static boolean isInterceptorBinding(Class<? extends Annotation> annotationType) {
-        return annotationType.isAnnotationPresent(InterceptorBinding.class);
+    final static Comparator<Annotation> INSTANCE = new InterceptorBindingComparator();
+
+    private InterceptorBindingComparator() {
     }
 
-    public static boolean isInterceptor(AnnotatedElement annotatedElement) {
-        return AnnotationUtils.isAnnotationPresent(annotatedElement, Interceptor.class);
+    @Override
+    public int compare(Annotation o1, Annotation o2) {
+        return o1.toString().compareTo(o2.toString());
     }
 }

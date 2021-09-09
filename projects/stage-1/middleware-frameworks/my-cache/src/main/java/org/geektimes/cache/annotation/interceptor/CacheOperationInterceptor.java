@@ -50,7 +50,16 @@ public abstract class CacheOperationInterceptor<A extends Annotation> extends An
 
     private final ConcurrentMap<A, CacheKeyGenerator> cacheKeyGeneratorCache = new ConcurrentHashMap<>();
 
-    protected Object execute(InvocationContext context, A cacheOperationAnnotation) throws Throwable {
+    public CacheOperationInterceptor() {
+
+    }
+
+    @Override
+    protected boolean shouldRegisterSyntheticInterceptorBindingType() {
+        return true;
+    }
+
+    protected Object intercept(InvocationContext context, A cacheOperationAnnotation) throws Throwable {
         Object target = context.getTarget();
         Method method = context.getMethod();
         Object[] parameters = context.getParameters();

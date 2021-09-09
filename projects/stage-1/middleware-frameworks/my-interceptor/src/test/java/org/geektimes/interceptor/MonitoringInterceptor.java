@@ -14,27 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.interceptor.cglib;
+package org.geektimes.interceptor;
 
-
-import net.sf.cglib.proxy.Enhancer;
-import org.geektimes.interceptor.InterceptorEnhancer;
-
-import javax.interceptor.Interceptor;
+import javax.interceptor.AroundInvoke;
+import javax.interceptor.InvocationContext;
 
 /**
- * {@link Interceptor @Interceptor} enhancer by CGLIB
+ * {@link MonitoringInterceptor} from Java Interceptor Specification
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class CglibInterceptorEnhancer implements InterceptorEnhancer {
+@Monitored
+@javax.interceptor.Interceptor
+public class MonitoringInterceptor {
 
-    @Override
-    public <T> T enhance(T source, Class<? super T> type, Object... interceptors) {
-        Enhancer enhancer = new Enhancer();
-        enhancer.setSuperclass(type);
-        enhancer.setCallback(new MethodInterceptorAdapter(source, interceptors));
-        return (T) enhancer.create();
+    @AroundInvoke
+    public Object monitorInvocation(InvocationContext context) throws Exception {
+        return context.proceed();
     }
 }

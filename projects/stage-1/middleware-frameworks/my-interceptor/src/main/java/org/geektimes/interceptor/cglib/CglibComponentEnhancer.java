@@ -14,30 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.interceptor;
+package org.geektimes.interceptor.cglib;
 
-import static org.geektimes.commons.util.ServiceLoaders.loadAsArray;
+
+import net.sf.cglib.proxy.Enhancer;
+import org.geektimes.interceptor.ComponentEnhancer;
+
+import javax.interceptor.Interceptor;
 
 /**
- * {@link Interceptor} Enhancer
+ * {@link Interceptor @Interceptor} enhancer by CGLIB
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public interface InterceptorEnhancer {
+public class CglibComponentEnhancer implements ComponentEnhancer {
 
-    default <T> T enhance(T source) {
-        return enhance(source, (Class<? super T>) source.getClass());
+    @Override
+    public <T> T enhance(T source, Class<? super T> componentClass, Object... defaultInterceptors) {
+        Enhancer enhancer = new Enhancer();
+        enhancer.setSuperclass(componentClass);
+        enhancer.setCallback(new MethodInterceptorAdapter(source, defaultInterceptors));
+        return (T) enhancer.create();
     }
-
-    default <T> T enhance(T source, Class<? super T> type) {
-        return enhance(source, type, loadAsArray(AnnotatedInterceptor.class));
-    }
-
-    default <T> T enhance(T source, Object... interceptors) {
-        return enhance(source, (Class<? super T>) source.getClass(), interceptors);
-    }
-
-    <T> T enhance(T source, Class<? super T> type, Object... interceptors);
-
 }

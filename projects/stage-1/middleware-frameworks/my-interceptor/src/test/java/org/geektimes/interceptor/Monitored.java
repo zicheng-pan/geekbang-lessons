@@ -14,24 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.interceptor.jdk;
+package org.geektimes.interceptor;
 
-import org.geektimes.interceptor.InterceptorEnhancer;
+import javax.interceptor.InterceptorBinding;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static org.geektimes.commons.lang.util.ClassLoaderUtils.getClassLoader;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.TYPE;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
- * {@link InterceptorEnhancer} based on JDK Dynamic Proxy
+ * {@link Monitored @Monitored} annotation from Java Interceptor Specification
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class DynamicProxyInterceptorEnhancer implements InterceptorEnhancer {
-
-    @Override
-    public <T> T enhance(T source, Class<? super T> type, Object... interceptors) {
-        ClassLoader classLoader = getClassLoader(type);
-        return (T) newProxyInstance(classLoader, new Class[]{type}, new InvocationHandlerAdapter(source, interceptors));
-    }
+@Inherited
+@InterceptorBinding
+@Target({TYPE, METHOD})
+@Retention(RUNTIME)
+public @interface Monitored {
 }
