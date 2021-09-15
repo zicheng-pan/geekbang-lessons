@@ -14,32 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.standard;
-
-import javax.enterprise.inject.spi.AnnotatedConstructor;
-import javax.enterprise.inject.spi.AnnotatedType;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Type;
+package org.geektimes.enterprise.inject.standard.beans;
 
 /**
- * {@link AnnotatedConstructor} based on Java reflection {@link Constructor}
+ * The source enumeration for Bean type
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class ReflectiveAnnotatedConstructor<X> extends ReflectiveAnnotatedCallable<Constructor, X>
-        implements AnnotatedConstructor<X> {
+public enum BeanTypeSource {
 
-    public ReflectiveAnnotatedConstructor(Constructor constructor) {
-        super(constructor);
-    }
+    /**
+     * The enabled bean type from explicit bean archives.
+     */
+    ENABLED,
 
-    public ReflectiveAnnotatedConstructor(Constructor constructor, AnnotatedType<X> declaringType) {
-        super(constructor, declaringType);
-    }
+    /**
+     * The discovered bean type from implicit bean archives.
+     */
+    DISCOVERED,
 
-    @Override
-    public Type getBaseType() {
-        return getDeclaringType().getBaseType();
-    }
+
+    /**
+     * The synthetic bean type outside of bean archives.
+     */
+    SYNTHETIC;
+
 }

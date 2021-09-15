@@ -14,21 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.standard;
+package org.geektimes.enterprise.inject.standard.annotation;
 
+import javax.enterprise.inject.spi.AnnotatedMethod;
 import javax.enterprise.inject.spi.AnnotatedType;
-import javax.enterprise.inject.spi.Bean;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 
 /**
- * Abstract {@link Bean} implementation based on {@link AnnotatedType}
+ * {@link AnnotatedMethod} based on Java reflection {@link Method}
  *
- * @param <T> the type of {@link Bean}
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public abstract class AbstractAnnotatedTypeBean<T> extends AbstractBean<Class, T> {
+public class ReflectiveAnnotatedMethod<X> extends ReflectiveAnnotatedCallable<Method, X>
+        implements AnnotatedMethod<X> {
 
-    public AbstractAnnotatedTypeBean(AnnotatedType<T> beanType) {
-        super(beanType.getJavaClass(), beanType.getJavaClass());
+    public ReflectiveAnnotatedMethod(Method method) {
+        super(method);
+    }
+
+    public ReflectiveAnnotatedMethod(Method method, AnnotatedType<X> declaringType) {
+        super(method, declaringType);
+    }
+
+    @Override
+    public Type getBaseType() {
+        return getAnnotatedElement().getGenericReturnType();
     }
 }

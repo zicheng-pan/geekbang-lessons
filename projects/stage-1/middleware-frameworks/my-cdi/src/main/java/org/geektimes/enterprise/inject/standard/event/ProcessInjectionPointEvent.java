@@ -16,7 +16,7 @@
  */
 package org.geektimes.enterprise.inject.standard.event;
 
-import org.geektimes.enterprise.inject.standard.beans.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
 import javax.enterprise.inject.spi.InjectionPoint;
 import javax.enterprise.inject.spi.ProcessInjectionPoint;
@@ -61,7 +61,7 @@ public class ProcessInjectionPointEvent<T, X> implements ProcessInjectionPoint<T
 
     @Override
     public void addDefinitionError(Throwable t) {
-        standardBeanManager.addBeanDiscoveryDefinitionError(t);
+        standardBeanManager.addDefinitionError(t);
     }
 
     @Override

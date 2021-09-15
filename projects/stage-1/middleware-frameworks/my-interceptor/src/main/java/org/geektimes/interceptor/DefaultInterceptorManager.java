@@ -68,7 +68,7 @@ public class DefaultInterceptorManager implements InterceptorManager {
 
     public DefaultInterceptorManager() {
         this.interceptorBindingTypes = new LinkedHashSet<>();
-        this.interceptorInfoRepository = new LinkedHashMap<>();
+        this.interceptorInfoRepository = new TreeMap<>(PriorityComparator.INSTANCE);
         this.bindingInterceptors = new LinkedHashMap<>();
         this.interceptorsCache = new LinkedHashMap<>();
         registerDefaultInterceptorBindingType();
@@ -76,6 +76,7 @@ public class DefaultInterceptorManager implements InterceptorManager {
 
     @Override
     public void registerInterceptorClass(Class<?> interceptorClass) {
+        validateInterceptorClass(interceptorClass);
         interceptorInfoRepository.computeIfAbsent(interceptorClass, InterceptorInfo::new);
     }
 
@@ -83,7 +84,35 @@ public class DefaultInterceptorManager implements InterceptorManager {
     public void registerInterceptor(Object interceptor) {
         Class<?> interceptorClass = interceptor.getClass();
         registerInterceptorClass(interceptorClass);
-        InterceptorBindings interceptorBindings = getInterceptorBindings(interceptorClass);
+        InterceptorInfo interceptorInfo = getInterceptorInfo(interceptorClass);
+        registerRegularInterceptor(interceptorInfo, interceptor);
+        registerLifecycleEventInterceptor(interceptorInfo, interceptor);
+    }
+
+    private void registerRegularInterceptor(InterceptorInfo interceptorInfo, Object interceptor) {
+        InterceptorBindings interceptorBindings = interceptorInfo.getInterceptorBindings();
+        registerInterceptor(interceptorBindings, interceptor);
+    }
+
+    private void registerLifecycleEventInterceptor(InterceptorInfo interceptorInfo, Object interceptor) {
+        for (Method method : interceptorInfo.getPostConstructMethods()) {
+            registerLifecycleEventInterceptor(method, PostConstruct.class, interceptor);
+        }
+
+        for (Method method : interceptorInfo.getPreDestroyMethods()) {
+            registerLifecycleEventInterceptor(method, PreDestroy.class, interceptor);
+        }
+    }
+
+    private void registerLifecycleEventInterceptor(Method method, Class<? extends Annotation> lifecycleAnnotationType, Object interceptor) {
+        Annotation lifecycleAnnotation = method.getAnnotation(lifecycleAnnotationType);
+        if (lifecycleAnnotation != null) {
+            InterceptorBindings interceptorBindings = new InterceptorBindings(singleton(lifecycleAnnotation));
+            registerInterceptor(interceptorBindings, interceptor);
+        }
+    }
+
+    private void registerInterceptor(InterceptorBindings interceptorBindings, Object interceptor) {
         SortedSet<Object> interceptors = bindingInterceptors.computeIfAbsent(interceptorBindings, t -> new TreeSet<>(PriorityComparator.INSTANCE));
         interceptors.add(interceptor);
     }
@@ -136,8 +165,29 @@ public class DefaultInterceptorManager implements InterceptorManager {
                 interceptorBindingTypes.contains(annotationType);
     }
 
+    @Override
+    public Set<Class<?>> getInterceptorClasses() {
+        return interceptorInfoRepository.keySet();
+    }
+
+    @Override
     public Set<Class<? extends Annotation>> getInterceptorBindingTypes() {
         return unmodifiableSet(interceptorBindingTypes);
+    }
+
+    @Override
+    public boolean isInterceptorClass(Class<?> interceptorClass) {
+        if(interceptorInfoRepository.containsKey(interceptorClass)){
+            return true;
+        }
+        return InterceptorUtils.isInterceptorClass(interceptorClass);
+    }
+
+    @Override
+    public void validateInterceptorClass(Class<?> interceptorClass) throws NullPointerException, IllegalStateException {
+        if (!interceptorInfoRepository.containsKey(interceptorClass)) {
+            InterceptorUtils.validateInterceptorClass(interceptorClass);
+        }
     }
 
     private void registerDefaultInterceptorBindingType() {

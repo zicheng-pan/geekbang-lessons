@@ -14,32 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.standard;
-
-import javax.enterprise.inject.spi.AnnotatedMethod;
-import javax.enterprise.inject.spi.AnnotatedType;
-import java.lang.reflect.Method;
-import java.lang.reflect.Type;
+package org.geektimes.interceptor;
 
 /**
- * {@link AnnotatedMethod} based on Java reflection {@link Method}
+ * TODO Comment
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
- * @since 1.0.0
+ * @since TODO
  */
-public class ReflectiveAnnotatedMethod<X> extends ReflectiveAnnotatedCallable<Method, X>
-        implements AnnotatedMethod<X> {
+public class InheritedAnnotationDemo {
 
-    public ReflectiveAnnotatedMethod(Method method) {
-        super(method);
-    }
+    public static void main(String[] args) {
+        Logging logging = A.class.getAnnotation(Logging.class);
+        System.out.println(logging);
 
-    public ReflectiveAnnotatedMethod(Method method, AnnotatedType<X> declaringType) {
-        super(method, declaringType);
+        logging = B.class.getAnnotation(Logging.class);
+        System.out.println(logging);
     }
+}
 
-    @Override
-    public Type getBaseType() {
-        return getAnnotatedElement().getGenericReturnType();
-    }
+@Logging(name = "A")
+class A { // Super Class
+
+}
+
+class B extends A { // B is A
+
 }

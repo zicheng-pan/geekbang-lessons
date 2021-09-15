@@ -21,10 +21,9 @@ import org.geektimes.commons.reflect.util.ClassUtils;
 import org.geektimes.commons.reflect.util.TypeUtils;
 import org.geektimes.commons.util.PriorityComparator;
 import org.geektimes.enterprise.inject.standard.MethodParameterInjectionPoint;
-import org.geektimes.enterprise.inject.standard.ReflectiveAnnotatedMethod;
-import org.geektimes.enterprise.inject.standard.ReflectiveAnnotatedParameter;
-import org.geektimes.enterprise.inject.standard.ReflectiveObserverMethod;
-import org.geektimes.enterprise.inject.standard.beans.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.annotation.ReflectiveAnnotatedMethod;
+import org.geektimes.enterprise.inject.standard.annotation.ReflectiveAnnotatedParameter;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
 import javax.enterprise.event.Event;
 import javax.enterprise.event.NotificationOptions;
@@ -74,12 +73,12 @@ public class ObserverMethodManager implements Event<Object> {
                 .forEach(this::registerObserverMethod);
     }
 
-    public void registerObserverMethods(Bean bean) {
+    public void registerObserverMethods(Bean<?> bean) {
         observerMethodDiscoverer.getObserverMethods(bean, bean.getBeanClass())
                 .forEach(this::registerObserverMethod);
     }
 
-    public void registerObserverMethod(ObserverMethod observerMethod) {
+    public void registerObserverMethod(ObserverMethod<?> observerMethod) {
         Type observerType = observerMethod.getObservedType();
         Set<Type> eventTypes = getAllTypes(observerType);
         fireProcessInjectionPointEvents(observerMethod);
@@ -91,7 +90,7 @@ public class ObserverMethodManager implements Event<Object> {
         });
     }
 
-    private void fireProcessInjectionPointEvents(ObserverMethod observerMethod) {
+    private void fireProcessInjectionPointEvents(ObserverMethod<?> observerMethod) {
         List<InjectionPoint> injectionPoints = createInjectionPoints(observerMethod);
         injectionPoints.forEach(this::fireProcessInjectionPointEvent);
     }
@@ -104,7 +103,7 @@ public class ObserverMethodManager implements Event<Object> {
         fire(processInjectionPoint);
     }
 
-    private void fireProcessObserverMethodEvent(ObserverMethod observerMethod) {
+    private void fireProcessObserverMethodEvent(ObserverMethod<?> observerMethod) {
         fire(new ProcessObserverMethodEvent(observerMethod, standardBeanManager));
     }
 
@@ -165,7 +164,7 @@ public class ObserverMethodManager implements Event<Object> {
                 });
     }
 
-    private InjectionPoint createObservedInjectionPoint(ObserverMethod observerMethod) {
+    private InjectionPoint createObservedInjectionPoint(ObserverMethod<?> observerMethod) {
         if (observerMethod instanceof ReflectiveObserverMethod) {
             ReflectiveObserverMethod reflectiveObserverMethod = (ReflectiveObserverMethod) observerMethod;
             ObserverMethodParameter observedParameter = reflectiveObserverMethod.getObservedParameter();
@@ -174,7 +173,7 @@ public class ObserverMethodManager implements Event<Object> {
         return null;
     }
 
-    private List<InjectionPoint> createInjectionPoints(ObserverMethod observerMethod) {
+    private List<InjectionPoint> createInjectionPoints(ObserverMethod<?> observerMethod) {
         List<InjectionPoint> injectionPoints = new LinkedList<>();
         if (observerMethod instanceof ReflectiveObserverMethod) {
             ReflectiveObserverMethod method = (ReflectiveObserverMethod) observerMethod;
@@ -186,7 +185,7 @@ public class ObserverMethodManager implements Event<Object> {
         return injectionPoints;
     }
 
-    private InjectionPoint createInjectionPoint(ObserverMethodParameter observedParameter, ReflectiveObserverMethod observerMethod) {
+    private InjectionPoint createInjectionPoint(ObserverMethodParameter observedParameter, ReflectiveObserverMethod<?> observerMethod) {
         Parameter parameter = observedParameter.getParameter();
         int index = observedParameter.getIndex();
         AnnotatedMethod method = new ReflectiveAnnotatedMethod(observerMethod.getMethod());

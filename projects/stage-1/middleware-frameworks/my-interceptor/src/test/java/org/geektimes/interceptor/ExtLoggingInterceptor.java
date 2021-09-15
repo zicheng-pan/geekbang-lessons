@@ -14,38 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.standard;
+package org.geektimes.interceptor;
 
-import org.geektimes.enterprise.inject.util.Beans;
+import org.geektimes.interceptor.Logging;
+import org.geektimes.interceptor.LoggingInterceptor;
 
-import javax.enterprise.inject.spi.Annotated;
-import javax.enterprise.inject.spi.BeanAttributes;
+import javax.annotation.PostConstruct;
+import javax.interceptor.Interceptor;
+import javax.interceptor.InvocationContext;
+import java.util.logging.Logger;
 
 /**
- * Generic {@link BeanAttributes} implementation
- *
- * @param <T> the class of the bean instance
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
- * @since 1.0.0
+ * @since
  */
-public class GenericBeanAttributes<T> extends AbstractBeanAttributes<Class, T> {
+@Logging
+@Interceptor
+public class ExtLoggingInterceptor extends LoggingInterceptor {
 
-    public GenericBeanAttributes(Class<?> beanClass) {
-        super(beanClass, beanClass);
-    }
-
-    @Override
-    protected String getBeanName(Class beanClass) {
-        return Beans.getBeanName(beanClass);
-    }
-
-    @Override
-    protected void validateAnnotatedElement(Class beanClass) {
-        // DO NOTING
-    }
-
-    @Override
-    public Annotated getAnnotated() {
-        return getAnnotatedType();
+    @PostConstruct
+    public void postConstruct(InvocationContext context) throws Exception {
+        Logger logger = Logger.getLogger(getClass().getName());
+        logger.info("postConstruct");
     }
 }

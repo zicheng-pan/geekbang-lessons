@@ -16,7 +16,7 @@
  */
 package org.geektimes.enterprise.inject.standard.event;
 
-import org.geektimes.enterprise.inject.standard.beans.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
 import javax.enterprise.inject.spi.Annotated;
 import javax.enterprise.inject.spi.Bean;
@@ -57,7 +57,7 @@ public class ProcessBeanEvent<X> implements ProcessBean<X> {
 
     @Override
     public void addDefinitionError(Throwable t) {
-        standardBeanManager.addBeanDiscoveryDefinitionError(t);
+        standardBeanManager.addDefinitionError(t);
     }
 
     @Override

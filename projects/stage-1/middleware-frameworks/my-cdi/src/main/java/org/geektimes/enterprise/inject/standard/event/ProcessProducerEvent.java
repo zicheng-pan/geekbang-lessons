@@ -16,7 +16,7 @@
  */
 package org.geektimes.enterprise.inject.standard.event;
 
-import org.geektimes.enterprise.inject.standard.beans.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
 import javax.enterprise.inject.spi.AnnotatedMember;
 import javax.enterprise.inject.spi.ProcessProducer;
@@ -70,7 +70,7 @@ public class ProcessProducerEvent<T, X> implements ProcessProducer<T, X> {
 
     @Override
     public void addDefinitionError(Throwable t) {
-        standardBeanManager.addBeanDiscoveryDefinitionError(t);
+        standardBeanManager.addDefinitionError(t);
     }
 
     @Override

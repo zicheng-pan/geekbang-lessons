@@ -16,13 +16,16 @@
  */
 package org.geektimes.enterprise.inject.standard.event;
 
-import org.geektimes.enterprise.inject.standard.beans.BeanArchiveManager;
-import org.geektimes.enterprise.inject.standard.beans.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.BeanArchiveManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
 import javax.enterprise.inject.spi.AfterTypeDiscovery;
 import javax.enterprise.inject.spi.AnnotatedType;
 import javax.enterprise.inject.spi.configurator.AnnotatedTypeConfigurator;
 import java.util.List;
+
+import static org.geektimes.enterprise.inject.standard.beans.BeanTypeSource.DISCOVERED;
+import static org.geektimes.enterprise.inject.standard.beans.BeanTypeSource.SYNTHETIC;
 
 /**
  * {@link AfterTypeDiscovery} Event is fired by container when it has fully completed the type discovery
@@ -46,7 +49,7 @@ public class AfterTypeDiscoveryEvent extends ContainerEvent implements AfterType
     @Override
     public List<Class<?>> getAlternatives() {
         getCallerExtension();
-        return beanArchiveManager.getAlternativeClasses();
+        return beanArchiveManager.getAlternativeClasses(DISCOVERED, SYNTHETIC);
     }
 
     /**
@@ -60,13 +63,15 @@ public class AfterTypeDiscoveryEvent extends ContainerEvent implements AfterType
     @Override
     public List<Class<?>> getInterceptors() {
         getCallerExtension();
-        return beanArchiveManager.getInterceptorClasses();
+        // FIXME
+        return beanArchiveManager.getInterceptorClasses(DISCOVERED, SYNTHETIC);
     }
 
     @Override
     public List<Class<?>> getDecorators() {
         getCallerExtension();
-        return beanArchiveManager.getDecoratorClasses();
+        // FIXME
+        return beanArchiveManager.getDecoratorClasses(DISCOVERED, SYNTHETIC);
     }
 
     @Override

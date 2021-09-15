@@ -14,31 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.interceptor;
+package org.geektimes.enterprise.inject.standard.beans;
 
-import org.junit.Test;
+import org.geektimes.enterprise.inject.util.Beans;
 
-import static org.geektimes.commons.collection.util.CollectionUtils.asSet;
-import static org.junit.Assert.assertEquals;
+import javax.enterprise.inject.spi.Annotated;
+import javax.enterprise.inject.spi.AnnotatedType;
+import javax.enterprise.inject.spi.BeanAttributes;
 
 /**
- * {@link DefaultComponentEnhancer} Test
+ * Generic {@link BeanAttributes} implementation
  *
+ * @param <T> the class of the bean instance
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class DefaultComponentEnhancerTest {
+public class GenericBeanAttributes<T> extends AbstractBeanAttributes<Class, T> {
 
-    private ComponentEnhancer interceptorEnhancer = new DefaultComponentEnhancer();
+    public GenericBeanAttributes(AnnotatedType<T> beanType) {
+        super(beanType.getJavaClass(), beanType);
+    }
 
-    @Test
-    public void testInterface() {
-        EchoService echoService = new EchoService();
-        ExternalInterceptor interceptor = new ExternalInterceptor();
-        echoService = interceptorEnhancer.enhance(echoService, interceptor);
-        echoService.init();
-        echoService.echo("Hello,World");
+    @Override
+    protected String getBeanName(Class beanClass) {
+        return Beans.getBeanName(beanClass);
+    }
 
-        assertEquals(asSet("init", "echo"), interceptor.getMethodNames());
+    @Override
+    protected void validate(Class beanClass) {
+        // DO NOTING
+    }
+
+    @Override
+    public Annotated getAnnotated() {
+        return getBeanType();
     }
 }

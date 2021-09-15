@@ -14,31 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.interceptor;
+package org.geektimes.enterprise.inject.standard.event;
 
-import org.junit.Test;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
-import static org.geektimes.commons.collection.util.CollectionUtils.asSet;
-import static org.junit.Assert.assertEquals;
+import javax.enterprise.inject.spi.AfterDeploymentValidation;
 
 /**
- * {@link DefaultComponentEnhancer} Test
+ * an event is raised after it has validated that there are no deployment problems and before creating
+ * contexts or processing requests.
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class DefaultComponentEnhancerTest {
+public class AfterDeploymentValidationEvent implements AfterDeploymentValidation {
 
-    private ComponentEnhancer interceptorEnhancer = new DefaultComponentEnhancer();
+    private final StandardBeanManager standardBeanManager;
 
-    @Test
-    public void testInterface() {
-        EchoService echoService = new EchoService();
-        ExternalInterceptor interceptor = new ExternalInterceptor();
-        echoService = interceptorEnhancer.enhance(echoService, interceptor);
-        echoService.init();
-        echoService.echo("Hello,World");
+    public AfterDeploymentValidationEvent(StandardBeanManager standardBeanManager) {
+        this.standardBeanManager = standardBeanManager;
+    }
 
-        assertEquals(asSet("init", "echo"), interceptor.getMethodNames());
+    @Override
+    public void addDeploymentProblem(Throwable t) {
+        standardBeanManager.addDeploymentProblem(t);
     }
 }

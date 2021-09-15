@@ -14,32 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.standard;
+package org.geektimes.enterprise.inject.standard.annotation;
 
-import javax.enterprise.inject.spi.AnnotatedField;
-import javax.enterprise.inject.spi.AnnotatedType;
-import java.lang.reflect.Field;
+import javax.enterprise.inject.spi.AnnotatedCallable;
+import javax.enterprise.inject.spi.AnnotatedParameter;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 
 /**
- * {@link AnnotatedField} based on Java reflection {@link Field}
+ * {@link AnnotatedParameter} based on Java Reflection {@link Parameter}
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class ReflectiveAnnotatedField<X> extends ReflectiveAnnotatedMember<Field, Field, X>
-        implements AnnotatedField<X> {
+public class ReflectiveAnnotatedParameter<X> extends ReflectiveAnnotated<Parameter> implements AnnotatedParameter<X> {
 
-    public ReflectiveAnnotatedField(Field field) {
-        super(field, field);
+    private final int index;
+
+    private final AnnotatedCallable<X> declaringCallable;
+
+    public ReflectiveAnnotatedParameter(Parameter parameter, int index, AnnotatedCallable<X> declaringCallable) {
+        super(parameter);
+        this.index = index;
+        this.declaringCallable = declaringCallable;
     }
 
-    public ReflectiveAnnotatedField(Field field, AnnotatedType<X> declaringType) {
-        super(field, field, declaringType);
+    @Override
+    public int getPosition() {
+        return index;
+    }
+
+    @Override
+    public AnnotatedCallable<X> getDeclaringCallable() {
+        return declaringCallable;
     }
 
     @Override
     public Type getBaseType() {
-        return getAnnotatedElement().getGenericType();
+        return getAnnotatedElement().getParameterizedType();
     }
 }

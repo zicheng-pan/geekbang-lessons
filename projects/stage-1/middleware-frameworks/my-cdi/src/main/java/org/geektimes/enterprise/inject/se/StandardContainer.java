@@ -16,8 +16,8 @@
  */
 package org.geektimes.enterprise.inject.se;
 
-import org.geektimes.enterprise.inject.standard.beans.BeanArchiveManager;
-import org.geektimes.enterprise.inject.standard.beans.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.BeanArchiveManager;
+import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
 
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.se.SeContainer;
@@ -68,15 +68,15 @@ public class StandardContainer implements SeContainer {
     }
 
     void addInterceptors(Class<?>... interceptorClasses) {
-        standardBeanManager.interceptorClasses(interceptorClasses);
+        standardBeanManager.syntheticInterceptors(interceptorClasses);
     }
 
     void addDecorators(Class<?>... decoratorClasses) {
-        standardBeanManager.decoratorClasses(decoratorClasses);
+        standardBeanManager.syntheticDecorators(decoratorClasses);
     }
 
     void addAlternatives(Class<?>... alternativeClasses) {
-        standardBeanManager.alternativeClasses(alternativeClasses);
+        standardBeanManager.syntheticAlternatives(alternativeClasses);
     }
 
     void addAlternativeStereotypes(Class<? extends Annotation>... alternativeStereotypeClasses) {

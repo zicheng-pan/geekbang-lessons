@@ -14,31 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.interceptor;
+package org.geektimes.enterprise.inject.standard.annotation;
 
-import org.junit.Test;
-
-import static org.geektimes.commons.collection.util.CollectionUtils.asSet;
-import static org.junit.Assert.assertEquals;
+import javax.enterprise.inject.spi.AnnotatedField;
+import javax.enterprise.inject.spi.AnnotatedType;
+import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 
 /**
- * {@link DefaultComponentEnhancer} Test
+ * {@link AnnotatedField} based on Java reflection {@link Field}
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class DefaultComponentEnhancerTest {
+public class ReflectiveAnnotatedField<X> extends ReflectiveAnnotatedMember<Field, Field, X>
+        implements AnnotatedField<X> {
 
-    private ComponentEnhancer interceptorEnhancer = new DefaultComponentEnhancer();
+    public ReflectiveAnnotatedField(Field field) {
+        super(field, field);
+    }
 
-    @Test
-    public void testInterface() {
-        EchoService echoService = new EchoService();
-        ExternalInterceptor interceptor = new ExternalInterceptor();
-        echoService = interceptorEnhancer.enhance(echoService, interceptor);
-        echoService.init();
-        echoService.echo("Hello,World");
+    public ReflectiveAnnotatedField(Field field, AnnotatedType<X> declaringType) {
+        super(field, field, declaringType);
+    }
 
-        assertEquals(asSet("init", "echo"), interceptor.getMethodNames());
+    @Override
+    public Type getBaseType() {
+        return getAnnotatedElement().getGenericType();
     }
 }

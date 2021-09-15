@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.geektimes.enterprise.inject.standard;
+package org.geektimes.enterprise.inject.standard.beans;
 
 import org.geektimes.enterprise.inject.util.Qualifiers;
 
@@ -60,23 +60,23 @@ public abstract class AbstractBeanAttributes<A extends AnnotatedElement, T> impl
 
     private boolean alternative;
 
-    private final AnnotatedType<T> annotatedType;
+    private final AnnotatedType<T> beanType;
 
     private boolean vetoed;
 
-    public AbstractBeanAttributes(A annotatedElement, Class<?> beanClass) {
+    public AbstractBeanAttributes(A annotatedElement, AnnotatedType<T> beanType) {
         requireNonNull(annotatedElement, "The 'annotatedElement' argument must not be null!");
-        requireNonNull(beanClass, "The 'beanClass' argument must not be null!");
-        validateAnnotatedElement(annotatedElement);
+        requireNonNull(beanType, "The 'beanType' argument must not be null!");
+        validate(annotatedElement);
         this.annotatedElement = annotatedElement;
-        this.beanClass = beanClass;
+        this.beanClass = beanType.getJavaClass();
         this.beanTypes = getBeanTypes(beanClass);
         this.qualifiers = Qualifiers.getQualifiers(annotatedElement);
         this.scopeType = getScopeType(annotatedElement);
         this.beanName = getBeanName(annotatedElement);
         this.stereotypeTypes = getStereotypeTypes(annotatedElement);
         this.alternative = isAnnotationPresent(annotatedElement, Alternative.class);
-        this.annotatedType = new ReflectiveAnnotatedType<>(beanClass);
+        this.beanType = beanType;
         this.vetoed = false;
     }
 
@@ -127,8 +127,8 @@ public abstract class AbstractBeanAttributes<A extends AnnotatedElement, T> impl
         return annotatedElement;
     }
 
-    public AnnotatedType getAnnotatedType() {
-        return annotatedType;
+    public AnnotatedType getBeanType() {
+        return beanType;
     }
 
     @Override
@@ -156,7 +156,7 @@ public abstract class AbstractBeanAttributes<A extends AnnotatedElement, T> impl
     // Abstract methods
     protected abstract String getBeanName(A annotatedElement);
 
-    protected abstract void validateAnnotatedElement(A annotatedElement);
+    protected abstract void validate(A annotatedElement);
 
     public abstract Annotated getAnnotated();
 
