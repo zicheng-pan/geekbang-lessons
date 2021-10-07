@@ -16,13 +16,14 @@
  */
 package org.geektimes.enterprise.inject.standard.producer;
 
-import org.geektimes.enterprise.inject.standard.MethodParameterInjectionPoint;
 import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
-import org.geektimes.enterprise.inject.standard.disposer.DisposerMethodManager;
 
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.CreationException;
-import javax.enterprise.inject.spi.*;
+import javax.enterprise.inject.spi.AnnotatedMethod;
+import javax.enterprise.inject.spi.Bean;
+import javax.enterprise.inject.spi.InjectionPoint;
+import javax.enterprise.inject.spi.Producer;
 import java.lang.reflect.Method;
 import java.util.Set;
 
@@ -36,20 +37,13 @@ import static org.geektimes.enterprise.inject.util.Injections.getMethodParameter
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @since 1.0.0
  */
-public class AnnotatedMethodProducer<T, X> implements Producer<T> {
+public class AnnotatedMethodProducer<T, X> extends AbstractProducer<T, X> {
 
     private final AnnotatedMethod<T> producerMethod;
 
-    private final Bean<X> declaringBean;
-
-    private final StandardBeanManager standardBeanManager;
-
-    private Set<InjectionPoint> injectionPoints;
-
     public AnnotatedMethodProducer(AnnotatedMethod<T> producerMethod, Bean<X> declaringBean, StandardBeanManager standardBeanManager) {
+        super(declaringBean, standardBeanManager);
         this.producerMethod = producerMethod;
-        this.declaringBean = declaringBean;
-        this.standardBeanManager = standardBeanManager;
     }
 
     @Override
@@ -63,7 +57,7 @@ public class AnnotatedMethodProducer<T, X> implements Producer<T> {
         final T beanInstance;
         try {
             if (!isStatic(method)) {
-                instance = standardBeanManager.getReference(declaringBean, declaringBean.getBeanClass(), ctx);
+                instance = getDeclaringBeanInstance(ctx);
             }
             beanInstance = (T) method.invoke(instance, injectedArguments);
         } catch (Throwable e) {
@@ -72,31 +66,12 @@ public class AnnotatedMethodProducer<T, X> implements Producer<T> {
         return beanInstance;
     }
 
-    @Override
-    public void dispose(T instance) {
-        DisposerMethodManager disposerMethodManager = standardBeanManager.getDisposerMethodManager();
-        disposerMethodManager.invokeDisposerMethod(instance);
-    }
-
-    private Object[] resolveInjectedArguments(CreationalContext<T> ctx) {
-        Object[] injectedArguments = new Object[injectionPoints.size()];
-
-        getInjectionPoints()
-                .stream()
-                .map(MethodParameterInjectionPoint.class::cast)
-                .forEach(injectionPoint -> {
-                    AnnotatedParameter parameter = injectionPoint.getAnnotated();
-                    injectedArguments[parameter.getPosition()] = standardBeanManager.getInjectableReference(injectionPoint, ctx);
-                });
-
-        return injectedArguments;
+    public AnnotatedMethod<T> getProducerMethod() {
+        return producerMethod;
     }
 
     @Override
-    public Set<InjectionPoint> getInjectionPoints() {
-        if (injectionPoints == null) {
-            this.injectionPoints = (Set) getMethodParameterInjectionPoints(producerMethod, declaringBean);
-        }
-        return injectionPoints;
+    protected Set<InjectionPoint> resolveInjectionPoints() {
+        return (Set) getMethodParameterInjectionPoints(producerMethod, getDeclaringBean());
     }
 }

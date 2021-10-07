@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.geektimes.commons.lang.util.AnnotationUtils.getAttributesMap;
-import static org.geektimes.interceptor.InterceptorBindingAttributeFilter.FILTERS;
-import static org.geektimes.interceptor.util.InterceptorUtils.isInterceptorBinding;
+import static org.geektimes.interceptor.InterceptorBindingAttributeFilter.filters;
+import static org.geektimes.interceptor.util.InterceptorUtils.isAnnotatedInterceptorBinding;
 
 /**
  * The Metadata Info Class for {@link InterceptorBinding}
@@ -47,8 +47,8 @@ public class InterceptorBindingInfo {
     public InterceptorBindingInfo(Annotation declaredAnnotation) {
         this.declaredAnnotation = declaredAnnotation;
         this.declaredAnnotationType = declaredAnnotation.annotationType();
-        this.synthetic = !isInterceptorBinding(declaredAnnotationType);
-        this.attributes = getAttributesMap(declaredAnnotation, FILTERS);
+        this.synthetic = !isAnnotatedInterceptorBinding(declaredAnnotationType);
+        this.attributes = getAttributesMap(declaredAnnotation, filters());
     }
 
     public Class<? extends Annotation> getDeclaredAnnotationType() {
@@ -68,7 +68,9 @@ public class InterceptorBindingInfo {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         InterceptorBindingInfo that = (InterceptorBindingInfo) o;
-        return synthetic == that.synthetic && Objects.equals(declaredAnnotationType, that.declaredAnnotationType) && Objects.equals(attributes, that.attributes);
+        return synthetic == that.synthetic
+                && Objects.equals(declaredAnnotationType, that.declaredAnnotationType)
+                && Objects.equals(attributes, that.attributes);
     }
 
     @Override
@@ -86,7 +88,14 @@ public class InterceptorBindingInfo {
      * @param interceptorBinding the instance of {@linkplain InterceptorBinding interceptor binding}
      * @return non-null
      */
-    public static InterceptorBindingInfo newInstance(Annotation interceptorBinding) {
+    public static InterceptorBindingInfo valueOf(Annotation interceptorBinding) {
         return new InterceptorBindingInfo(interceptorBinding);
+    }
+
+    public boolean equals(Annotation declaredAnnotation) {
+        if (declaredAnnotation == null) {
+            return false;
+        }
+        return this.equals(valueOf(declaredAnnotation));
     }
 }

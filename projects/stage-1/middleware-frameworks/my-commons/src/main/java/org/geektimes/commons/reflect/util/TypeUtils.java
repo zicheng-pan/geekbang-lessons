@@ -30,7 +30,6 @@ import static java.util.stream.Collectors.toSet;
 import static java.util.stream.StreamSupport.stream;
 import static org.geektimes.commons.function.Predicates.and;
 import static org.geektimes.commons.function.Streams.filter;
-import static org.geektimes.commons.function.Streams.filterAll;
 import static org.geektimes.commons.reflect.util.ClassUtils.getAllSuperClasses;
 import static org.geektimes.commons.reflect.util.ClassUtils.isAssignableFrom;
 
@@ -84,27 +83,33 @@ public abstract class TypeUtils extends BaseUtils {
         return null;
     }
 
-    public static <T> Class<T> findActualTypeArgument(Type type, Class<?> interfaceClass, int index) {
-        return (Class<T>) findActualTypeArguments(type, interfaceClass).get(index);
+    public static <T> Class<T> findActualTypeArgumentClass(Type type, Class<?> interfaceClass, int index) {
+        return (Class<T>) findActualTypeArgumentClasses(type, interfaceClass).get(index);
     }
 
-    public static List<Class<?>> findActualTypeArguments(Type type, Class<?> interfaceClass) {
+    public static List<Class<?>> findActualTypeArgumentClasses(Type type, Class<?> interfaceClass) {
 
-        List<Class<?>> actualTypeArguments = new LinkedList<>();
+        List<Type> actualTypeArguments = findActualTypeArguments(type, interfaceClass);
 
+        List<Class<?>> actualTypeArgumentClasses = new LinkedList<>();
+
+        for (Type actualTypeArgument : actualTypeArguments) {
+            Class<?> rawClass = getRawClass(actualTypeArgument);
+            if (rawClass != null) {
+                actualTypeArgumentClasses.add(rawClass);
+            }
+        }
+
+        return unmodifiableList(actualTypeArgumentClasses);
+    }
+
+    public static List<Type> findActualTypeArguments(Type type, Class<?> interfaceClass) {
+        List<Type> actualTypeArguments = new LinkedList<>();
         getAllGenericTypes(type, t -> isAssignableFrom(interfaceClass, getRawClass(t)))
                 .forEach(parameterizedType -> {
                     Class<?> rawClass = getRawClass(parameterizedType);
                     Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                    for (int i = 0; i < typeArguments.length; i++) {
-                        Type typeArgument = typeArguments[i];
-                        if (typeArgument instanceof ParameterizedType) {
-                            typeArgument = ((ParameterizedType) typeArgument).getRawType();
-                        }
-                        if (typeArgument instanceof Class) {
-                            actualTypeArguments.add(i, (Class) typeArgument);
-                        }
-                    }
+                    actualTypeArguments.addAll(asList(typeArguments));
                     Class<?> superClass = rawClass.getSuperclass();
                     if (superClass != null) {
                         actualTypeArguments.addAll(findActualTypeArguments(superClass, interfaceClass));
@@ -133,7 +138,6 @@ public abstract class TypeUtils extends BaseUtils {
 
         genericTypes.add(rawClass.getGenericSuperclass());
         genericTypes.addAll(asList(rawClass.getGenericInterfaces()));
-
         return unmodifiableList(filter(genericTypes, TypeUtils::isParameterizedType)
                 .stream()
                 .map(ParameterizedType.class::cast)
@@ -187,7 +191,7 @@ public abstract class TypeUtils extends BaseUtils {
                 .map(ParameterizedType.class::cast)
                 .collect(Collectors.toList());
 
-        return unmodifiableList(filterAll(allGenericSuperClasses, typeFilters));
+        return unmodifiableList(filter(allGenericSuperClasses, typeFilters));
     }
 
     /**
@@ -222,7 +226,7 @@ public abstract class TypeUtils extends BaseUtils {
                 .map(ParameterizedType.class::cast)
                 .collect(toList());
 
-        return unmodifiableList(filterAll(allGenericInterfaces, typeFilters));
+        return filter(allGenericInterfaces, typeFilters);
     }
 
     public static String getClassName(Type type) {
@@ -354,7 +358,7 @@ public abstract class TypeUtils extends BaseUtils {
         }
 
         if (rawClass.isInterface()) {
-            return unmodifiableSet(filterAll(singleton(Object.class), typeFilters));
+            return unmodifiableSet(filter(singleton(Object.class), typeFilters));
         }
 
         Set<Type> allSuperTypes = new LinkedHashSet<>();
@@ -368,7 +372,7 @@ public abstract class TypeUtils extends BaseUtils {
             superType = superClass.getGenericSuperclass();
         }
 
-        return unmodifiableSet(filterAll(allSuperTypes, typeFilters));
+        return filter(allSuperTypes, typeFilters);
     }
 
     /**
@@ -402,7 +406,7 @@ public abstract class TypeUtils extends BaseUtils {
             allSuperInterfaces.addAll(getAllInterfaces(superType));
         }
 
-        return unmodifiableSet(filterAll(allSuperInterfaces, typeFilters));
+        return filter(allSuperInterfaces, typeFilters);
     }
 
     public static Set<Type> getAllTypes(Type type, Predicate<Type>... typeFilters) {
@@ -416,7 +420,7 @@ public abstract class TypeUtils extends BaseUtils {
         // add all super interfaces
         allTypes.addAll(getAllInterfaces(type));
 
-        return unmodifiableSet(filterAll(allTypes, typeFilters));
+        return filter(allTypes, typeFilters);
     }
 
     public static Set<ParameterizedType> findParameterizedTypes(Class<?> sourceClass) {

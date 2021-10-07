@@ -31,8 +31,11 @@ import org.geektimes.enterprise.inject.standard.beans.interceptor.InterceptorBea
 import org.geektimes.enterprise.inject.standard.beans.producer.ProducerBean;
 import org.geektimes.enterprise.inject.standard.beans.producer.ProducerFieldBean;
 import org.geektimes.enterprise.inject.standard.beans.producer.ProducerMethodBean;
+import org.geektimes.enterprise.inject.standard.context.mananger.ContextManager;
 import org.geektimes.enterprise.inject.standard.disposer.DisposerMethodManager;
 import org.geektimes.enterprise.inject.standard.event.*;
+import org.geektimes.enterprise.inject.standard.event.application.*;
+import org.geektimes.enterprise.inject.standard.observer.ObserverMethodManager;
 import org.geektimes.enterprise.inject.standard.producer.ProducerFieldBeanAttributes;
 import org.geektimes.enterprise.inject.standard.producer.ProducerFieldFactory;
 import org.geektimes.enterprise.inject.standard.producer.ProducerMethodBeanAttributes;
@@ -42,28 +45,32 @@ import org.geektimes.interceptor.InterceptorManager;
 
 import javax.el.ELResolver;
 import javax.el.ExpressionFactory;
+import javax.enterprise.context.*;
 import javax.enterprise.context.spi.Context;
 import javax.enterprise.context.spi.Contextual;
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
 import javax.enterprise.event.ObservesAsync;
-import javax.enterprise.inject.Disposes;
-import javax.enterprise.inject.Instance;
-import javax.enterprise.inject.Produces;
+import javax.enterprise.inject.*;
 import javax.enterprise.inject.spi.*;
 import javax.enterprise.util.TypeLiteral;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.*;
+import java.util.function.Function;
 
+import static java.lang.String.format;
 import static java.lang.System.getProperty;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 import static java.util.ServiceLoader.load;
 import static org.geektimes.commons.lang.util.ArrayUtils.iterate;
 import static org.geektimes.enterprise.inject.util.Beans.isAnnotatedVetoed;
 import static org.geektimes.enterprise.inject.util.Beans.isManagedBean;
+import static org.geektimes.enterprise.inject.util.Decorators.isDecorator;
 import static org.geektimes.enterprise.inject.util.Disposers.resolveAndValidateDisposerMethods;
 import static org.geektimes.enterprise.inject.util.Exceptions.newDefinitionException;
 import static org.geektimes.enterprise.inject.util.Injections.getMethodParameterInjectionPoints;
@@ -97,17 +104,20 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
     private final Map<String, Object> properties;
 
+    private final ContextManager contextManager;
+
     private final BeanArchiveManager beanArchiveManager;
 
     private final ObserverMethodManager observerMethodsManager;
+
+    private final DisposerMethodManager disposerMethodManager;
 
     private final InterceptorManager interceptorManager;
 
     private final Map<Class<? extends Extension>, Extension> extensions;
 
-    private final Map<String, AnnotatedType<?>> beanTypes;
 
-    private final DisposerMethodManager disposerMethodManager;
+    private final Map<String, AnnotatedType<?>> beanTypes;
 
     private final Map<String, AnnotatedType<?>> alternativeTypes;
 
@@ -127,14 +137,20 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
     private final List<Bean<?>> genericBeans;
 
 
-    private Set<Throwable> definitionErrors;
+    private final Set<DefinitionException> definitionErrors;
 
-    private Set<Throwable> deploymentProblems;
+    private final Set<DeploymentException> deploymentProblems;
+
+
+    private boolean firedAfterBeanDiscoveryEvent = false;
+
+    private boolean firedAfterDeploymentValidationEvent = false;
 
     public StandardBeanManager() {
         this.classLoader = ClassLoaderUtils.getClassLoader(getClass());
 
-        this.beanArchiveManager = new BeanArchiveManager(classLoader);
+        this.contextManager = new ContextManager();
+        this.beanArchiveManager = new BeanArchiveManager(this);
         this.observerMethodsManager = new ObserverMethodManager(this);
         this.disposerMethodManager = new DisposerMethodManager(this);
         this.interceptorManager = getInstance(classLoader);
@@ -154,16 +170,25 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
         this.definitionErrors = new LinkedHashSet<>();
         this.deploymentProblems = new LinkedHashSet<>();
+
     }
 
     @Override
     public Object getReference(Bean<?> bean, Type beanType, CreationalContext<?> ctx) {
-        // TODO
-        return null;
+        assertAfterDeploymentValidation();
+        if (!Objects.equals(beanType.getTypeName(), bean.getBeanClass().getTypeName())) {
+            throw new IllegalArgumentException(format("The given type[%s] is not a bean type[%s] of the given bean!",
+                    beanType.getTypeName(),
+                    bean.getBeanClass()));
+        }
+        Class<? extends Annotation> scope = bean.getScope();
+        Context context = getContext(scope);
+        return context.get((Contextual) bean, ctx);
     }
 
     @Override
     public Object getInjectableReference(InjectionPoint ij, CreationalContext<?> ctx) {
+        assertAfterDeploymentValidation();
         // TODO
         return null;
     }
@@ -176,30 +201,36 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
     @Override
     public Set<Bean<?>> getBeans(Type beanType, Annotation... qualifiers) {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
 
     @Override
     public Set<Bean<?>> getBeans(String name) {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
 
     @Override
     public Bean<?> getPassivationCapableBean(String id) {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
 
     @Override
     public <X> Bean<? extends X> resolve(Set<Bean<? extends X>> beans) {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
 
     @Override
     public void validate(InjectionPoint injectionPoint) {
+        assertAfterBeanDiscovery();
+        validateInjectionPointType(injectionPoint);
         Annotated annotated = injectionPoint.getAnnotated();
         if (annotated instanceof AnnotatedField) { // InjectionPoint on Field
             validateFieldInjectionPoint(injectionPoint);
@@ -210,6 +241,22 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
             } else if (isMethodParameter(annotatedParameter)) { // InjectionPoint on Methods' Parameter
                 validateMethodParameterInjectionPoint(injectionPoint);
             }
+        }
+    }
+
+    /**
+     * Any legal bean type may be the required type of an injection point.
+     * Furthermore, the required type of an injection point may contain a wildcard type parameter.
+     * However, a type variable is not a legal injection point type.
+     *
+     * @param injectionPoint {@link InjectionPoint}
+     * @throws DefinitionException If an injection point type is a type variable, the container automatically
+     *                             detects the problem and treats it as a definition error.
+     */
+    private void validateInjectionPointType(InjectionPoint injectionPoint) throws DefinitionException {
+        Type type = injectionPoint.getType();
+        if (type instanceof TypeVariable) {
+            throw newDefinitionException("A type variable[%s] is not a legal injection point[%s] type", type, injectionPoint);
         }
     }
 
@@ -256,34 +303,37 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
     @Override
     public <T> Set<ObserverMethod<? super T>> resolveObserverMethods(T event, Annotation... qualifiers) {
+        assertAfterBeanDiscovery();
         return (Set) observerMethodsManager.resolveObserverMethods(event, qualifiers);
     }
 
     @Override
     public List<Decorator<?>> resolveDecorators(Set<Type> types, Annotation... qualifiers) {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
 
     @Override
     public List<Interceptor<?>> resolveInterceptors(InterceptionType type, Annotation... interceptorBindings) {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
 
     @Override
     public boolean isScope(Class<? extends Annotation> annotationType) {
-        return beanArchiveManager.isScope(annotationType);
+        return contextManager.isScope(annotationType);
     }
 
     @Override
     public boolean isNormalScope(Class<? extends Annotation> annotationType) {
-        return beanArchiveManager.isNormalScope(annotationType);
+        return contextManager.isNormalScope(annotationType);
     }
 
     @Override
     public boolean isPassivatingScope(Class<? extends Annotation> annotationType) {
-        return beanArchiveManager.isPassivatingScope(annotationType);
+        return contextManager.isPassivatingScope(annotationType);
     }
 
     @Override
@@ -333,8 +383,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
     @Override
     public Context getContext(Class<? extends Annotation> scopeType) {
-        // TODO
-        return null;
+        return contextManager.getContext(scopeType);
     }
 
     @Override
@@ -357,6 +406,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
     @Deprecated
     @Override
     public <T> InjectionTarget<T> createInjectionTarget(AnnotatedType<T> type) {
+
         return null;
     }
 
@@ -433,6 +483,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
     @Override
     public Instance<Object> createInstance() {
+        assertAfterBeanDiscovery();
         // TODO
         return null;
     }
@@ -486,21 +537,88 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
         // TODO
     }
 
+    /**
+     * When an application is stopped, the container performs the following steps:
+     * <ol>
+     *     <li>the container must destroy all contexts.</li>
+     *     <li>the container must fire an event of type {@link BeforeShutdown}</li>
+     * </ol>
+     */
+    public void shutdown() {
+        destroyContexts();
+        fireBeforeShutdownEvent();
+    }
+
+    private void destroyContexts() {
+        contextManager.destroy();
+    }
+
+    private void fireBeforeShutdownEvent() {
+        fireEvent(new BeforeShutdownEvent(this));
+    }
+
+
+    /**
+     * Is defining annotation type or not.
+     * <p>
+     * A bean class may have a bean defining annotation, allowing it to be placed anywhere in an application,
+     * as defined in Bean archives. A bean class with a bean defining annotation is said to be an implicit bean.
+     * The set of bean defining annotations contains:
+     * <ul>
+     *     <li>{@link ApplicationScoped @ApplicationScoped}, {@link SessionScoped @SessionScoped},
+     *         {@link ConversationScoped @ConversationScoped} and {@link RequestScoped @RequestScoped} annotations
+     *     </li>
+     *     <li>all other normal scope types</li>
+     *     <li>{@link javax.interceptor.Interceptor @Interceptor} and {@link javax.decorator.Decorator @Decorator} annotations</li>
+     *     <li>all stereotype annotations (i.e. annotations annotated with {@link Stereotype @Stereotype})</li>
+     *     <li>the {@link Dependent @Dependent} scope annotation</li>
+     * </ul>
+     *
+     * @param type
+     * @param includedInterceptor
+     * @param includedDecorator
+     * @return
+     */
+    public boolean isDefiningAnnotationType(Class<?> type, boolean includedInterceptor, boolean includedDecorator) {
+
+        if (includedInterceptor && interceptorManager.isInterceptorClass(type)) {
+            return true;
+        }
+        if (includedDecorator && isDecorator(type)) {
+            return true;
+        }
+
+        boolean hasDefiningAnnotation = false;
+
+        Annotation[] annotations = type.getAnnotations();
+        for (Annotation annotation : annotations) {
+            Class<? extends Annotation> annotationType = annotation.annotationType();
+            if (isScope(annotationType) ||
+                    isNormalScope(annotationType) ||
+                    isStereotype(annotationType)) {
+                hasDefiningAnnotation = true;
+                break;
+            }
+        }
+
+        return hasDefiningAnnotation;
+    }
+
     public void addDefinitionError(Throwable t) {
-        this.definitionErrors.add(t);
+        this.definitionErrors.add(new DefinitionException(t));
     }
 
     /**
      * Registers a deployment problem with the container, causing the container to abort deployment
      * after all observers have been notified.
+     *
      * @param t {@link Throwable}
      */
     public void addDeploymentProblem(Throwable t) {
-        this.deploymentProblems.add(t);
+        this.deploymentProblems.add(new DeploymentException(t));
     }
 
     private void initializeBeanArchiveManager() {
-        beanArchiveManager.setClassLoader(classLoader);
         beanArchiveManager.enableScanImplicit(isScanImplicitEnabled());
     }
 
@@ -569,10 +687,10 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
      * the container must perform bean discovery, as defined in Bean discovery.
      */
     private void performBeanDiscovery() {
-        determineManagedBeans();
         determineAlternativeBeans();
         determineInterceptorBeans();
         determineDecoratorBeans();
+        determineManagedBeans();
     }
 
     private void determineManagedBeans() {
@@ -613,7 +731,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
             determineProducerFields(managedBean);
             determineDisposerMethods(managedBean);
             determineObserverMethods(managedBean);
-            registerManagedBean(managedBean);
+            registerBean(managedBean);
         }
     }
 
@@ -708,7 +826,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
         if (!interceptorBean.isVetoed()) {
             fireProcessBeanEvent(interceptorType, interceptorBean);
             registerInterceptorClass(interceptorType);
-            registerInterceptorBean(interceptorBean);
+            registerBean(interceptorBean);
         }
     }
 
@@ -717,11 +835,12 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
             registerInterceptorBean((Interceptor) bean);
         } else if (bean instanceof Decorator) {
             registerDecoratorBean((Decorator) bean);
-        } else if (bean instanceof ManagedBean){
+        } else if (bean instanceof ManagedBean) {
             registerManagedBean((ManagedBean) bean);
         } else {
             genericBeans.add(bean);
         }
+        contextManager.addBean(bean);
     }
 
     private void registerInterceptorBean(Interceptor<?> interceptorBean) {
@@ -744,7 +863,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
         fireProcessBeanAttributesEvent(decoratorType, decoratorBean);
         if (!decoratorBean.isVetoed()) { // vetoed if ProcessBeanAttributes.veto() method was invoked
             fireProcessBeanEvent(decoratorType, decoratorBean);
-            registerDecoratorBean(decoratorBean);
+            registerBean(decoratorBean);
         }
     }
 
@@ -767,9 +886,27 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
     /**
      * the container must fire an event of type AfterBeanDiscovery, as defined in AfterBeanDiscovery event, and abort
      * initialization of the application if any observer registers a definition error.
+     * An exception is thrown if the following operations are called before the AfterBeanDiscovery event is fired:
+     * <ul>
+     *     <li>{@link #getBeans(String)}</li>
+     *     <li>{@link #getBeans(Type, Annotation...)}</li>
+     *     <li>{@link #getPassivationCapableBean(String)}</li>
+     *     <li>{@link #resolve(Set)}</li>
+     *     <li>{@link #resolveDecorators(Set, Annotation...)}</li>
+     *     <li>{@link #resolveInterceptors(InterceptionType, Annotation...)}</li>
+     *     <li>{@link #resolveObserverMethods(Object, Annotation...)}</li>
+     *     <li>{@link #validate(InjectionPoint)}</li>
+     *  </ul>
      */
     private void performAfterBeanDiscovery() {
         fireAfterBeanDiscoveryEvent();
+    }
+
+    private void assertAfterBeanDiscovery() {
+        if (!firedAfterBeanDiscoveryEvent) {
+            throw new UnsupportedOperationException("Current operation must not be invoked before " +
+                    "AfterBeanDiscovery event is fired!");
+        }
     }
 
     /**
@@ -784,9 +921,22 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
     /**
      * the container must fire an event of type AfterDeploymentValidation, as defined in AfterDeploymentValidation event,
      * and abort initialization of the application if any observer registers a deployment problem.
+     * An exception is thrown if the following operations are called before the AfterBeanDiscovery event is fired:
+     * <ul>
+     *     <li>{@link #createInstance()}</li>
+     *     <li>{@link #getReference(Bean, Type, CreationalContext)}</li>
+     *     <li>{@link #getInjectableReference(InjectionPoint, CreationalContext)}</li>
+     *  </ul>
      */
     private void performAfterDeploymentValidation() {
         fireAfterDeploymentValidationEvent();
+    }
+
+    private void assertAfterDeploymentValidation() {
+        if (!firedAfterDeploymentValidationEvent) {
+            throw new UnsupportedOperationException("Current operation must not be invoked before " +
+                    "AfterDeploymentValidation event is fired");
+        }
     }
 
     private StandardBeanManager discoverExtensions() {
@@ -806,6 +956,15 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
         fireEvent(new BeforeBeanDiscoveryEvent(this));
     }
 
+    /**
+     * The container must fire an event, before it processes a type, for every Java class, interface
+     * (excluding annotation type, a special kind of interface type) or enum discovered as defined
+     * in Type discovery.
+     * An event is not fired for any type annotated with {@link Vetoed @Vetoed},
+     * or in a package annotated with {@link Vetoed @Vetoed}
+     *
+     * @param annotatedType {@link AnnotatedType}
+     */
     private void fireProcessAnnotatedTypeEvent(AnnotatedType<?> annotatedType) {
         if (!isAnnotatedVetoed(annotatedType.getJavaClass())) {
             fireEvent(new ProcessAnnotatedTypeEvent(annotatedType, this));
@@ -872,6 +1031,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
      */
     private void fireAfterBeanDiscoveryEvent() {
         fireEvent(new AfterBeanDiscoveryEvent(this));
+        firedAfterBeanDiscoveryEvent = true;
     }
 
 
@@ -881,6 +1041,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
      */
     private void fireAfterDeploymentValidationEvent() {
         fireEvent(new AfterDeploymentValidationEvent(this));
+        firedAfterDeploymentValidationEvent = true;
     }
 
     private void fireEvent(Object event) {
@@ -958,7 +1119,7 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
         observerMethodsManager.registerObserverMethods(beanInstance);
     }
 
-    public void registerObserverMethod(ObserverMethod<?> observerMethod){
+    public void registerObserverMethod(ObserverMethod<?> observerMethod) {
         observerMethodsManager.registerObserverMethod(observerMethod);
     }
 
@@ -1005,8 +1166,11 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
 
     public StandardBeanManager classLoader(ClassLoader classLoader) {
         this.classLoader = classLoader;
-        this.beanArchiveManager.setClassLoader(classLoader);
         return this;
+    }
+
+    public ContextManager getContextManager() {
+        return contextManager;
     }
 
     public BeanArchiveManager getBeanArchiveManager() {
@@ -1052,6 +1216,54 @@ public class StandardBeanManager implements BeanManager, Instance<Object> {
             annotatedTypes.add(createAnnotatedType(klass));
         }
         return annotatedTypes;
+    }
+
+    public <T> AnnotatedType<T> getAnnotatedType(Class<T> type, String id) {
+        return id == null ? getAnnotatedType(type.getName()) : getAnnotatedType(id);
+    }
+
+    public <T> AnnotatedType<T> getAnnotatedType(String id) {
+        AnnotatedType<T> annotatedType = getAnnotatedType(id, beanTypes::get);
+
+        if (annotatedType == null) {
+            annotatedType = getAnnotatedType(id, alternativeTypes::get);
+        }
+
+        if (annotatedType == null) {
+            annotatedType = getAnnotatedType(id, interceptorTypes::get);
+        }
+
+        if (annotatedType == null) {
+            annotatedType = getAnnotatedType(id, decoratorTypes::get);
+        }
+
+        return annotatedType;
+    }
+
+    private <T> AnnotatedType<T> getAnnotatedType(String id, Function<Object, AnnotatedType<?>> typeMapping) {
+        return (AnnotatedType<T>) typeMapping.apply(id);
+    }
+
+    public <T> Iterable<AnnotatedType<T>> getAnnotatedTypes(Class<T> type) {
+        List<AnnotatedType<T>> annotatedTypes = new LinkedList<>();
+        addAnnotatedType(type, beanTypes, annotatedTypes);
+        addAnnotatedType(type, alternativeTypes, annotatedTypes);
+        addAnnotatedType(type, interceptorTypes, annotatedTypes);
+        addAnnotatedType(type, decoratorTypes, annotatedTypes);
+        return unmodifiableList(annotatedTypes);
+    }
+
+    private <T> void addAnnotatedType(Class<T> type, Map<String, AnnotatedType<?>> types,
+                                      List<AnnotatedType<T>> annotatedTypes) {
+        AnnotatedType<T> annotatedType = getAnnotatedType(type.getName(), types::get);
+        if (annotatedType != null) {
+            annotatedTypes.add(annotatedType);
+        }
+    }
+
+
+    public ClassLoader getClassLoader() {
+        return classLoader;
     }
 
 }

@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
 import static org.geektimes.commons.function.ThrowableSupplier.execute;
 import static org.geektimes.commons.lang.util.AnnotationUtils.isAnnotationPresent;
 import static org.geektimes.commons.lang.util.AnnotationUtils.isMetaAnnotation;
-import static org.geektimes.commons.reflect.util.ConstructorUtils.hasPublicNoArgConstructor;
+import static org.geektimes.commons.reflect.util.ConstructorUtils.hasNonPrivateConstructorWithoutParameters;
 
 /**
  * The utilities class for {@link Interceptor}
@@ -46,6 +46,18 @@ public abstract class InterceptorUtils {
 
     public static final Class<? extends Annotation> INTERCEPTOR_ANNOTATION_TYPE = javax.interceptor.Interceptor.class;
 
+    public static final Class<? extends Annotation> INTERCEPTOR_BINDING_ANNOTATION_TYPE = InterceptorBinding.class;
+
+    public static final Class<? extends Annotation> AROUND_INVOKE_ANNOTATION_TYPE = AroundInvoke.class;
+
+    public static final Class<? extends Annotation> AROUND_TIMEOUT_ANNOTATION_TYPE = AroundTimeout.class;
+
+    public static final Class<? extends Annotation> AROUND_CONSTRUCT_ANNOTATION_TYPE = AroundConstruct.class;
+
+    public static final Class<? extends Annotation> POST_CONSTRUCT_ANNOTATION_TYPE = PostConstruct.class;
+
+    public static final Class<? extends Annotation> PRE_DESTROY_ANNOTATION_TYPE = PreDestroy.class;
+
 
     public static boolean isInterceptorClass(Class<?> interceptorClass) {
         if (isAnnotationPresent(interceptorClass, INTERCEPTOR_ANNOTATION_TYPE)) {
@@ -54,8 +66,8 @@ public abstract class InterceptorUtils {
         return false;
     }
 
-    public static List<Object> sortInterceptors(List<Object> interceptors) {
-        List<Object> sortedInterceptors = new LinkedList<>(interceptors);
+    public static <T> List<T> sortInterceptors(List<T> interceptors) {
+        List<T> sortedInterceptors = new LinkedList<>(interceptors);
         sortedInterceptors.sort(PriorityComparator.INSTANCE);
         return sortedInterceptors;
     }
@@ -105,7 +117,7 @@ public abstract class InterceptorUtils {
      *                               or if the return type of method is not <code>Object</code> or its derived type.
      */
     public static boolean isAroundInvokeMethod(Method method) {
-        return isInterceptionMethod(method, AroundInvoke.class, Object.class);
+        return isInterceptionMethod(method, AROUND_INVOKE_ANNOTATION_TYPE, Object.class);
     }
 
     /**
@@ -126,7 +138,7 @@ public abstract class InterceptorUtils {
      *                               or if the return type of method is not <code>Object</code> or its derived type.
      */
     public static boolean isAroundTimeoutMethod(Method method) {
-        return isInterceptionMethod(method, AroundTimeout.class, Object.class);
+        return isInterceptionMethod(method, AROUND_TIMEOUT_ANNOTATION_TYPE, Object.class);
     }
 
     /**
@@ -140,7 +152,7 @@ public abstract class InterceptorUtils {
      *                               or if the return type of method is not <code>void</code>
      */
     public static boolean isAroundConstructMethod(Method method) {
-        return isInterceptionMethod(method, AroundConstruct.class, void.class);
+        return isInterceptionMethod(method, AROUND_CONSTRUCT_ANNOTATION_TYPE, void.class);
     }
 
     /**
@@ -154,7 +166,7 @@ public abstract class InterceptorUtils {
      *                               or if the return type of method is not <code>void</code>
      */
     public static boolean isPostConstructMethod(Method method) {
-        return isInterceptionMethod(method, PostConstruct.class, void.class);
+        return isInterceptionMethod(method, POST_CONSTRUCT_ANNOTATION_TYPE, void.class);
     }
 
     /**
@@ -168,22 +180,7 @@ public abstract class InterceptorUtils {
      *                               or if the return type of method is not <code>void</code>
      */
     public static boolean isPreDestroyMethod(Method method) {
-        return isInterceptionMethod(method, PreDestroy.class, void.class);
-    }
-
-
-    public static <A extends Annotation> A resolveInterceptorBinding(Method method, Class<A> interceptorBindingType) {
-        if (method == null) {
-            return null;
-        }
-        return searchAnnotation(method, interceptorBindingType);
-    }
-
-    public static <A extends Annotation> A resolveInterceptorBinding(Constructor constructor, Class<A> interceptorBindingType) {
-        if (constructor == null) {
-            return null;
-        }
-        return searchAnnotation(constructor, interceptorBindingType);
+        return isInterceptionMethod(method, PRE_DESTROY_ANNOTATION_TYPE, void.class);
     }
 
     static boolean isInterceptionMethod(Method method, Class<? extends Annotation> annotationType,
@@ -272,7 +269,7 @@ public abstract class InterceptorUtils {
     }
 
     private static void validateInterceptorClassConstructors(Class<?> interceptorClass) {
-        if (!hasPublicNoArgConstructor(interceptorClass)) {
+        if (!hasNonPrivateConstructorWithoutParameters(interceptorClass)) {
             throw newIllegalStateException("The Interceptor class[%s] must have a public no-arg constructor!",
                     interceptorClass.getName());
         }
@@ -281,8 +278,27 @@ public abstract class InterceptorUtils {
     private static void validateInterceptorClassMethods(Class<?> interceptorClass) {
     }
 
-    public static boolean isInterceptorBinding(Class<? extends Annotation> annotationType) {
-        return isMetaAnnotation(annotationType, InterceptorBinding.class);
+    public static boolean isAnnotatedInterceptorBinding(Class<? extends Annotation> annotationType) {
+        return isMetaAnnotation(annotationType, INTERCEPTOR_BINDING_ANNOTATION_TYPE);
+    }
+
+    public static <A extends Annotation> A resolveInterceptorBinding(Method method, Class<A> interceptorBindingType) {
+        if (method == null) {
+            return null;
+        }
+        return searchAnnotation(method, interceptorBindingType);
+    }
+
+    public static <A extends Annotation> A resolveInterceptorBinding(Constructor constructor, Class<A> interceptorBindingType) {
+        if (constructor == null) {
+            return null;
+        }
+        return searchAnnotation(constructor, interceptorBindingType);
+    }
+
+    public static boolean isAnnotatedInterceptorBinding(Executable executable,
+                                                        Class<? extends Annotation> interceptorBindingType) {
+        return searchAnnotation(executable, interceptorBindingType) != null;
     }
 
     private static IllegalStateException newIllegalStateException(String messagePattern, Object... args) {

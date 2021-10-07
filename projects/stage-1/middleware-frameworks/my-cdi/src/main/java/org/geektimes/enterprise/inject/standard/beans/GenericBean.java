@@ -24,6 +24,7 @@ import org.geektimes.enterprise.inject.util.Injections;
 import javax.enterprise.context.spi.CreationalContext;
 import javax.enterprise.inject.CreationException;
 import javax.enterprise.inject.spi.*;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.util.LinkedList;
 import java.util.List;
@@ -35,6 +36,8 @@ import static org.geektimes.commons.collection.util.CollectionUtils.newLinkedHas
 
 /**
  * Generic implementation for {@link Bean Bean}, which extends {@link GenericBeanAttributes}
+ * <p>
+ * Implementations of {@link Bean Bean} usually maintain a reference to an instance of {@link BeanManager}.
  *
  * @param <T> the class of the bean instance
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>

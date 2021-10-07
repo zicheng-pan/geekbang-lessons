@@ -17,6 +17,7 @@
 package org.geektimes.enterprise.inject.standard.event;
 
 import org.geektimes.enterprise.inject.standard.beans.manager.StandardBeanManager;
+import org.geektimes.enterprise.inject.standard.event.application.BeforeBeanDiscoveryEvent;
 import org.junit.Test;
 
 import javax.enterprise.inject.Default;
